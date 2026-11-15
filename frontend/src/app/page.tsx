@@ -2,14 +2,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard, Video, History, Info, Sun, Moon,
+  Image as ImageIcon, Music2, CheckCircle2, Smile,
+  Workflow, FolderOpen, Search, Play, LoaderCircle,
+  Files, Sparkles, ImagePlus, AudioLines,
+} from "lucide-react";
 
 const API_URL = "https://sentioguard-gateway.gayassheik77.workers.dev";
 
 const navigation = [
-  { name: "Dashboard", icon: "â–¦" },
-  { name: "Generate Video", icon: "ï¼‹" },
-  { name: "Generation History", icon: "â—·" },
-  { name: "About Project", icon: "â“˜" },
+  { name: "Dashboard", icon: LayoutDashboard },
+  { name: "Generate Video", icon: Video },
+  { name: "Generation History", icon: History },
+  { name: "About Project", icon: Info },
 ];
 
 type GenerationRecord = {
@@ -85,7 +92,7 @@ export default function Home() {
                 activePage === item.name ? "active" : ""
               }`}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-icon"><item.icon size={18} strokeWidth={1.8} /></span>
               {item.name}
             </button>
           ))}
@@ -122,7 +129,7 @@ export default function Home() {
               aria-label="Toggle theme"
               title="Toggle light and dark theme"
             >
-              {darkMode ? "â˜€" : "â˜¾"}
+              {darkMode ? <Sun size={19} /> : <Moon size={19} />}
             </button>
           </div>
         </header>
@@ -150,7 +157,7 @@ export default function Home() {
 
         <footer className="footer">
           <span>SentioguardAI</span>
-          <span>Academic Research Project Â· 2026</span>
+          <span>Academic Research Project | 2026</span>
         </footer>
       </section>
     </main>
@@ -192,25 +199,25 @@ function Dashboard({
           label="Total Generations"
           value={String(history.length)}
           detail="Generated video sessions"
-          icon="â–¤"
+          icon={Video}
         />
         <StatCard
           label="Available Emotions"
           value="8"
           detail="Available emotion profiles"
-          icon="â—Ž"
+          icon={Video}
         />
         <StatCard
           label="Processing Engine"
           value="AI Video Generation"
           detail="Emotion synthesis pipeline"
-          icon="â—ˆ"
+          icon={Workflow}
         />
         <StatCard
           label="System Status"
           value="Ready"
           detail="Local generation services"
-          icon="âœ“"
+          icon={CheckCircle2}
         />
       </section>
 
@@ -221,7 +228,7 @@ function Dashboard({
               <p className="eyebrow">PROJECT OVERVIEW</p>
               <h3>About the platform</h3>
             </div>
-            <span className="panel-icon">â—ˆ</span>
+            <span className="panel-icon"><Sparkles size={19} /></span>
           </div>
 
           <p className="panel-description">
@@ -266,7 +273,7 @@ function Dashboard({
               className="secondary-button"
               onClick={() => setActivePage("Generate Video")}
             >
-              Open generation studio â†’
+              Open generation studio &rarr;
             </button>
           </div>
 
@@ -277,7 +284,7 @@ function Dashboard({
               Facial reference, audio conditioning, and emotional
               expression generation.
             </p>
-            <span className="module-tag">AI Â· COMPUTER VISION</span>
+            <span className="module-tag">AI | COMPUTER VISION</span>
           </div>
         </div>
       </section>
@@ -292,13 +299,13 @@ function Dashboard({
             className="text-button"
             onClick={() => setActivePage("Generation History")}
           >
-            View history â†’
+            View history &rarr;
           </button>
         </div>
 
         {history.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">â–¤</div>
+            <div className="empty-icon"><FolderOpen size={28} /></div>
             <strong>No generation history yet</strong>
             <p>Your generated videos will appear here.</p>
           </div>
@@ -306,7 +313,7 @@ function Dashboard({
           <div className="workflow">
             {history.slice(0, 3).map((record) => (
               <div className="workflow-step" key={record.id}>
-                <span className="step-number">âœ“</span>
+                <span className="step-number"><CheckCircle2 size={16} /></span>
                 <div>
                   <strong>{record.emotion} generation</strong>
                   <p>{new Date(record.date).toLocaleString()}</p>
@@ -532,7 +539,7 @@ function GenerationStudio({
                   className="image-preview"
                 />
               ) : (
-                <span className="upload-icon">â–§</span>
+                <span className="upload-icon"><ImagePlus size={27} /></span>
               )}
 
               <strong>
@@ -571,7 +578,7 @@ function GenerationStudio({
                 }}
               />
 
-              <span className="upload-icon">â™«</span>
+              <span className="upload-icon"><AudioLines size={27} /></span>
               <strong>
                 {audio ? audio.name : "Choose speech audio"}
               </strong>
@@ -673,8 +680,8 @@ function GenerationStudio({
                 : status === "processing"
                   ? "Generating video..."
                   : status === "completed"
-                    ? "Generate Another Video â†’"
-                    : "Generate Talking-Head Video â†’"}
+                    ? "Generate Another Video ->"
+                    : "Generate Talking-Head Video ->"}
           </button>
 
           {backendOnline === false && (
@@ -742,13 +749,13 @@ function GenerationStudio({
                     textDecoration: "none",
                   }}
                 >
-                  Open generated video â†’
+                  Open generated video &rarr;
                 </a>
               </div>
             ) : (
               <div className="video-placeholder">
                 <span className="video-placeholder-icon">
-                  {busy ? "â—Œ" : "â–¶"}
+                  {busy ? <LoaderCircle size={28} className="animate-spin" /> : <Play size={28} />}
                 </span>
                 <strong>
                   {busy ? "Generation in progress" : "Preview will appear here"}
@@ -794,7 +801,7 @@ function GenerationStudio({
             <h3>Uploaded files</h3>
 
             <div className="file-summary">
-              <span>â–§</span>
+              <span><ImageIcon size={19} /></span>
               <div>
                 <strong>Facial image</strong>
                 <p>{image ? image.name : "No image selected"}</p>
@@ -802,7 +809,7 @@ function GenerationStudio({
             </div>
 
             <div className="file-summary">
-              <span>â™«</span>
+              <span><Music2 size={19} /></span>
               <div>
                 <strong>Speech audio</strong>
                 <p>{audio ? audio.name : "No audio selected"}</p>
@@ -863,15 +870,15 @@ function GenerationHistory({
 
       <section className="history-summary-grid">
         <div className="history-summary-card">
-          <span className="history-summary-icon">â–£</span>
+          <span className="history-summary-icon"><Files size={20} /></span>
           <div><span className="history-summary-label">Total outputs</span><strong>{history.length}</strong></div>
         </div>
         <div className="history-summary-card">
-          <span className="history-summary-icon">âœ“</span>
+          <span className="history-summary-icon"><CheckCircle2 size={20} /></span>
           <div><span className="history-summary-label">Completed</span><strong>{history.length}</strong></div>
         </div>
         <div className="history-summary-card">
-          <span className="history-summary-icon">â—Ž</span>
+          <span className="history-summary-icon"><Smile size={20} /></span>
           <div><span className="history-summary-label">Emotion types used</span><strong>{new Set(history.map((item) => item.emotion)).size}</strong></div>
         </div>
       </section>
@@ -899,7 +906,7 @@ function GenerationHistory({
         {history.length > 0 && (
           <div className="history-filters">
             <label className="history-search">
-              <span aria-hidden="true">âŒ•</span>
+              <span aria-hidden="true"><Search size={18} /></span>
               <input
                 type="search"
                 value={searchTerm}
@@ -924,7 +931,7 @@ function GenerationHistory({
 
         {history.length === 0 ? (
           <div className="history-empty-state">
-            <span className="history-empty-icon">â—·</span>
+            <span className="history-empty-icon"><History size={28} /></span>
             <h3>No generations yet</h3>
             <p>Videos you generate will appear here with their emotion, input files and creation date.</p>
           </div>
@@ -955,18 +962,18 @@ function GenerationHistory({
 
                   <div className="history-file-grid">
                     <div className="history-file">
-                      <span className="history-file-icon">â–§</span>
+                      <span className="history-file-icon"><ImageIcon size={19} /></span>
                       <div><span>Reference image</span><strong title={record.imageName}>{record.imageName}</strong></div>
                     </div>
                     <div className="history-file">
-                      <span className="history-file-icon">â™«</span>
+                      <span className="history-file-icon"><Music2 size={19} /></span>
                       <div><span>Speech audio</span><strong title={record.audioName}>{record.audioName}</strong></div>
                     </div>
                   </div>
 
                   <div className="history-record-actions">
                     <a href={record.videoUrl} target="_blank" rel="noreferrer" className="history-open-button">
-                      <span>â–¶</span> Open video
+                      <Play size={16} /> Open video
                     </a>
                     <button type="button" className="history-remove-button" onClick={() => onRemove(record.id)}>
                       Remove record
@@ -1028,13 +1035,15 @@ function StatCard({
   label: string;
   value: string;
   detail: string;
-  icon: string;
+  icon: LucideIcon;
 }) {
+  const Icon = icon;
+
   return (
     <div className="panel stat-card">
       <div className="stat-top">
         <span>{label}</span>
-        <span className="stat-icon">{icon}</span>
+        <span className="stat-icon"><Icon size={18} strokeWidth={1.8} /></span>
       </div>
       <h3>{value}</h3>
       <p>{detail}</p>
@@ -1059,6 +1068,11 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
+
 
 
 
