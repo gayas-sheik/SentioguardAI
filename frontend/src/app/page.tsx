@@ -1,4 +1,4 @@
-
+﻿
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,10 +6,10 @@ import { useEffect, useState } from "react";
 const API_URL = "https://sentioguard-gateway.gayassheik77.workers.dev";
 
 const navigation = [
-  { name: "Dashboard", icon: "▦" },
-  { name: "Generate Video", icon: "＋" },
-  { name: "Generation History", icon: "◷" },
-  { name: "About Project", icon: "ⓘ" },
+  { name: "Dashboard", icon: "â–¦" },
+  { name: "Generate Video", icon: "ï¼‹" },
+  { name: "Generation History", icon: "â—·" },
+  { name: "About Project", icon: "â“˜" },
 ];
 
 type GenerationRecord = {
@@ -69,8 +69,8 @@ export default function Home() {
         <div className="brand">
           <div className="brand-mark">S</div>
           <div>
-            <h2>SentioGaurdAI</h2>
-            <p>RESEARCH PLATFORM</p>
+            <h2>SentioguardAI</h2>
+            <p>VIDEO GENERATION PLATFORM</p>
           </div>
         </div>
 
@@ -96,10 +96,10 @@ export default function Home() {
             <span className="status-dot" />
             <div>
               <strong>System status</strong>
-              <p>Research environment</p>
+              <p>Video Generation Platform</p>
             </div>
           </div>
-          <p className="sidebar-version">SentioGaurdAI · v1.0</p>
+          <p className="sidebar-version">SentioguardAI | v1.0</p>
         </div>
       </aside>
 
@@ -113,7 +113,7 @@ export default function Home() {
           <div className="topbar-actions">
             <span className="environment-label">
               <span className="status-dot" />
-              Research Environment
+              Video Generation Platform
             </span>
 
             <button
@@ -122,7 +122,7 @@ export default function Home() {
               aria-label="Toggle theme"
               title="Toggle light and dark theme"
             >
-              {darkMode ? "☀" : "☾"}
+              {darkMode ? "â˜€" : "â˜¾"}
             </button>
           </div>
         </header>
@@ -149,8 +149,8 @@ export default function Home() {
         {activePage === "About Project" && <AboutProject />}
 
         <footer className="footer">
-          <span>SentioGaurdAI</span>
-          <span>Academic Research Project · 2026</span>
+          <span>SentioguardAI</span>
+          <span>Academic Research Project Â· 2026</span>
         </footer>
       </section>
     </main>
@@ -173,7 +173,7 @@ function Dashboard({
           <p className="eyebrow">FINAL YEAR PROJECT</p>
           <h2>Multimodal Emotion-Controlled Talking Video</h2>
           <p className="welcome-description">
-            An AI-based research platform for generating emotionally
+            An AI-powered video generation platform for creating emotionally
             expressive talking-head videos using facial images, speech
             audio, and user-selected emotions.
           </p>
@@ -192,25 +192,25 @@ function Dashboard({
           label="Total Generations"
           value={String(history.length)}
           detail="Generated video sessions"
-          icon="▤"
+          icon="â–¤"
         />
         <StatCard
           label="Available Emotions"
           value="8"
-          detail="FLOAT emotion options"
-          icon="◎"
+          detail="Available emotion profiles"
+          icon="â—Ž"
         />
         <StatCard
           label="Processing Engine"
-          value="FLOAT"
-          detail="ComfyUI workflow"
-          icon="◈"
+          value="AI Video Generation"
+          detail="Emotion synthesis pipeline"
+          icon="â—ˆ"
         />
         <StatCard
           label="System Status"
           value="Ready"
-          detail="Local research environment"
-          icon="✓"
+          detail="Local generation services"
+          icon="âœ“"
         />
       </section>
 
@@ -219,13 +219,13 @@ function Dashboard({
           <div className="panel-heading">
             <div>
               <p className="eyebrow">PROJECT OVERVIEW</p>
-              <h3>About the research</h3>
+              <h3>About the platform</h3>
             </div>
-            <span className="panel-icon">◈</span>
+            <span className="panel-icon">â—ˆ</span>
           </div>
 
           <p className="panel-description">
-            SentioGaurdAI explores emotion-controlled talking-head
+            SentioguardAI explores emotion-controlled talking-head
             generation through multimodal AI. The system combines visual
             identity, speech input, and emotion conditioning to produce
             an expressive video output.
@@ -266,18 +266,18 @@ function Dashboard({
               className="secondary-button"
               onClick={() => setActivePage("Generate Video")}
             >
-              Open generation studio →
+              Open generation studio â†’
             </button>
           </div>
 
           <div className="panel info-panel">
-            <p className="eyebrow">RESEARCH MODULE</p>
+            <p className="eyebrow">GENERATION MODULE</p>
             <h3>Multimodal processing</h3>
             <p className="panel-description">
               Facial reference, audio conditioning, and emotional
               expression generation.
             </p>
-            <span className="module-tag">AI · COMPUTER VISION</span>
+            <span className="module-tag">AI Â· COMPUTER VISION</span>
           </div>
         </div>
       </section>
@@ -292,13 +292,13 @@ function Dashboard({
             className="text-button"
             onClick={() => setActivePage("Generation History")}
           >
-            View history →
+            View history â†’
           </button>
         </div>
 
         {history.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">▤</div>
+            <div className="empty-icon">â–¤</div>
             <strong>No generation history yet</strong>
             <p>Your generated videos will appear here.</p>
           </div>
@@ -306,7 +306,7 @@ function Dashboard({
           <div className="workflow">
             {history.slice(0, 3).map((record) => (
               <div className="workflow-step" key={record.id}>
-                <span className="step-number">✓</span>
+                <span className="step-number">âœ“</span>
                 <div>
                   <strong>{record.emotion} generation</strong>
                   <p>{new Date(record.date).toLocaleString()}</p>
@@ -420,9 +420,9 @@ function GenerationStudio({
 
       setJobId(id);
       setStatus("queued");
-      setMessage("Your generation has been submitted to FLOAT.");
+      setMessage("Your video generation request has been submitted.");
 
-      // Poll the backend until FLOAT finishes or reports an error.
+      // Track the generation request until the video is ready or an error occurs.
       const maximumAttempts = 1800;
 
       for (let attempt = 0; attempt < maximumAttempts; attempt++) {
@@ -463,7 +463,7 @@ function GenerationStudio({
 
         if (statusResult.status === "failed") {
           throw new Error(
-            statusResult.error || "FLOAT generation failed."
+            statusResult.error || "Video generation failed."
           );
         }
 
@@ -474,14 +474,14 @@ function GenerationStudio({
           setStatus(statusResult.status);
           setMessage(
             statusResult.status === "processing"
-              ? "FLOAT is generating your video. Please wait..."
-              : "Your request is waiting in the ComfyUI queue..."
+              ? "Your video is being generated. Please wait..."
+              : "Your request is waiting in the generation queue..."
           );
         }
       }
 
       throw new Error(
-        "Generation is taking longer than expected. Check ComfyUI before submitting another request."
+        "Generation is taking longer than expected. Check the generation service before submitting another request."
       );
     } catch (error) {
       setStatus("failed");
@@ -532,7 +532,7 @@ function GenerationStudio({
                   className="image-preview"
                 />
               ) : (
-                <span className="upload-icon">▧</span>
+                <span className="upload-icon">â–§</span>
               )}
 
               <strong>
@@ -571,7 +571,7 @@ function GenerationStudio({
                 }}
               />
 
-              <span className="upload-icon">♫</span>
+              <span className="upload-icon">â™«</span>
               <strong>
                 {audio ? audio.name : "Choose speech audio"}
               </strong>
@@ -647,13 +647,13 @@ function GenerationStudio({
               <span className="studio-step">04</span>
               <div>
                 <h3>Generation settings</h3>
-                <p>Default FLOAT workflow configuration.</p>
+                <p>Default video generation configuration.</p>
               </div>
             </div>
 
             <div className="settings-grid">
-              <Setting label="Generation engine" value="FLOAT" />
-              <Setting label="Processing framework" value="ComfyUI" />
+              <Setting label="Generation engine" value="AI Video Generation" />
+              <Setting label="Processing framework" value="Generation Orchestration" />
               <Setting label="Output frame rate" value="25 FPS" />
               <Setting label="Audio guidance" value="2.0" />
               <Setting label="Reference guidance" value="1.0" />
@@ -673,19 +673,19 @@ function GenerationStudio({
                 : status === "processing"
                   ? "Generating video..."
                   : status === "completed"
-                    ? "Generate Another Video →"
-                    : "Generate Talking-Head Video →"}
+                    ? "Generate Another Video â†’"
+                    : "Generate Talking-Head Video â†’"}
           </button>
 
           {backendOnline === false && (
             <p className="generation-message">
-              Backend or ComfyUI is unavailable. Start both services and refresh this page.
+              The generation service is unavailable. Start the local services and refresh this page.
             </p>
           )}
 
           {backendOnline === true && (
             <p className="form-hint">
-              Backend and ComfyUI are connected.
+              Generation services are connected.
             </p>
           )}
 
@@ -742,20 +742,20 @@ function GenerationStudio({
                     textDecoration: "none",
                   }}
                 >
-                  Open generated video →
+                  Open generated video â†’
                 </a>
               </div>
             ) : (
               <div className="video-placeholder">
                 <span className="video-placeholder-icon">
-                  {busy ? "◌" : "▶"}
+                  {busy ? "â—Œ" : "â–¶"}
                 </span>
                 <strong>
                   {busy ? "Generation in progress" : "Preview will appear here"}
                 </strong>
                 <p>
                   {busy
-                    ? "FLOAT is processing your inputs. Keep this page open."
+                    ? "Your video is being generated. Keep this page open."
                     : "Your generated video will be displayed in this area."}
                 </p>
               </div>
@@ -794,7 +794,7 @@ function GenerationStudio({
             <h3>Uploaded files</h3>
 
             <div className="file-summary">
-              <span>▧</span>
+              <span>â–§</span>
               <div>
                 <strong>Facial image</strong>
                 <p>{image ? image.name : "No image selected"}</p>
@@ -802,7 +802,7 @@ function GenerationStudio({
             </div>
 
             <div className="file-summary">
-              <span>♫</span>
+              <span>â™«</span>
               <div>
                 <strong>Speech audio</strong>
                 <p>{audio ? audio.name : "No audio selected"}</p>
@@ -863,15 +863,15 @@ function GenerationHistory({
 
       <section className="history-summary-grid">
         <div className="history-summary-card">
-          <span className="history-summary-icon">▣</span>
+          <span className="history-summary-icon">â–£</span>
           <div><span className="history-summary-label">Total outputs</span><strong>{history.length}</strong></div>
         </div>
         <div className="history-summary-card">
-          <span className="history-summary-icon">✓</span>
+          <span className="history-summary-icon">âœ“</span>
           <div><span className="history-summary-label">Completed</span><strong>{history.length}</strong></div>
         </div>
         <div className="history-summary-card">
-          <span className="history-summary-icon">◎</span>
+          <span className="history-summary-icon">â—Ž</span>
           <div><span className="history-summary-label">Emotion types used</span><strong>{new Set(history.map((item) => item.emotion)).size}</strong></div>
         </div>
       </section>
@@ -899,7 +899,7 @@ function GenerationHistory({
         {history.length > 0 && (
           <div className="history-filters">
             <label className="history-search">
-              <span aria-hidden="true">⌕</span>
+              <span aria-hidden="true">âŒ•</span>
               <input
                 type="search"
                 value={searchTerm}
@@ -924,7 +924,7 @@ function GenerationHistory({
 
         {history.length === 0 ? (
           <div className="history-empty-state">
-            <span className="history-empty-icon">◷</span>
+            <span className="history-empty-icon">â—·</span>
             <h3>No generations yet</h3>
             <p>Videos you generate will appear here with their emotion, input files and creation date.</p>
           </div>
@@ -955,18 +955,18 @@ function GenerationHistory({
 
                   <div className="history-file-grid">
                     <div className="history-file">
-                      <span className="history-file-icon">▧</span>
+                      <span className="history-file-icon">â–§</span>
                       <div><span>Reference image</span><strong title={record.imageName}>{record.imageName}</strong></div>
                     </div>
                     <div className="history-file">
-                      <span className="history-file-icon">♫</span>
+                      <span className="history-file-icon">â™«</span>
                       <div><span>Speech audio</span><strong title={record.audioName}>{record.audioName}</strong></div>
                     </div>
                   </div>
 
                   <div className="history-record-actions">
                     <a href={record.videoUrl} target="_blank" rel="noreferrer" className="history-open-button">
-                      <span>▶</span> Open video
+                      <span>â–¶</span> Open video
                     </a>
                     <button type="button" className="history-remove-button" onClick={() => onRemove(record.id)}>
                       Remove record
@@ -994,12 +994,12 @@ function AboutProject() {
     <div className="content">
       <div className="page-intro">
         <p className="eyebrow">PROJECT INFORMATION</p>
-        <h2>About SentioGaurdAI</h2>
-        <p>Research overview and system information.</p>
+        <h2>About SentioguardAI</h2>
+        <p>Platform overview and system information.</p>
       </div>
 
       <div className="panel">
-        <h3>Research objective</h3>
+        <h3>Platform objective</h3>
         <p className="panel-description">
           To develop a multimodal AI system that generates talking-head
           videos from a reference facial image and speech audio,
@@ -1008,7 +1008,7 @@ function AboutProject() {
 
         <div className="about-details">
           <Detail label="Project domain" value="Image Analysis and Pattern Recognition" />
-          <Detail label="Generation framework" value="ComfyUI + FLOAT" />
+          <Detail label="Generation framework" value="Emotion-controlled video synthesis" />
           <Detail label="Frontend" value="Next.js + React + TypeScript" />
           <Detail label="Backend" value="Python + FastAPI" />
         </div>
@@ -1059,3 +1059,10 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
+
+
+

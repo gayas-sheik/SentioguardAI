@@ -14,18 +14,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "SentioGaurdAI | Emotion-Controlled Talking-Head Generation",
-    template: "%s | SentioGaurdAI",
+    default: "SentioguardAI | Emotion-Controlled Video Generation",
+    template: "%s | SentioguardAI",
   },
   description:
-    "An academic research platform for multimodal, emotion-controlled talking-head video generation using facial images, speech audio, and FLOAT.",
-  applicationName: "SentioGaurdAI",
+    "An AI-powered video generation platform for creating emotionally expressive talking-head videos using facial images, speech audio, and emotion control.",
+  applicationName: "SentioguardAI",
   keywords: [
-    "SentioGaurdAI",
-    "emotion-controlled talking-head generation",
+    "SentioguardAI",
+    "emotion-controlled video generation",
+    "talking-head video generation",
     "multimodal AI",
-    "FLOAT",
-    "ComfyUI",
+    "emotion processing",
+    "video synthesis",
   ],
 };
 
