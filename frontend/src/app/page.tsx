@@ -338,6 +338,10 @@ function GenerationStudio({
   const [audio, setAudio] = useState<File | null>(null);
   const [emotion, setEmotion] = useState("happy");
   const [intensity, setIntensity] = useState(7);
+  const [intensityMode, setIntensityMode] = useState<"manual" | "automatic">("manual");
+  const [audioAnalysis, setAudioAnalysis] = useState<any>(null);
+  const [analysisStatus, setAnalysisStatus] = useState<"idle" | "analyzing" | "complete" | "failed">("idle");
+  const [analysisMessage, setAnalysisMessage] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("idle");
   const [jobId, setJobId] = useState("");
@@ -390,6 +394,41 @@ function GenerationStudio({
     };
   }, []);
 
+  async function analyzeSelectedAudio(file: File) {
+    setAudioAnalysis(null);
+    setAnalysisStatus("analyzing");
+    setAnalysisMessage("Analyzing audio quality and acoustic features...");
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      const response = await fetch(`${API_URL}/api/analyze-audio`, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || "Audio analysis failed.");
+      }
+
+      setAudioAnalysis(result);
+      setAnalysisStatus("complete");
+      setAnalysisMessage("Audio analysis completed.");
+
+      const recommended = result.aaec?.recommended_intensity;
+      if (typeof recommended === "number") {
+        setIntensity(recommended);
+      }
+    } catch (error) {
+      setAnalysisStatus("failed");
+      setAnalysisMessage(
+        error instanceof Error ? error.message : "Could not analyze audio."
+      );
+    }
+  }
+
   async function handleGenerate() {
     if (!image || !audio) {
       setMessage("Please upload both a facial image and speech audio.");
@@ -407,6 +446,7 @@ function GenerationStudio({
       formData.append("audio", audio);
       formData.append("emotion", emotion);
       formData.append("intensity", String(intensity));
+      formData.append("intensity_mode", intensityMode);
 
       const response = await fetch(`${API_URL}/api/generate`, {
         method: "POST",
@@ -425,6 +465,11 @@ function GenerationStudio({
         throw new Error("Backend did not return a generation ID.");
       }
 
+      const submittedIntensity =
+        typeof result.selected_intensity === "number"
+          ? result.selected_intensity
+          : intensity;
+      setIntensity(submittedIntensity);
       setJobId(id);
       setStatus("queued");
       setMessage("Your video generation request has been submitted.");
@@ -458,7 +503,7 @@ function GenerationStudio({
           onSave({
             id,
             emotion,
-            intensity,
+            intensity: submittedIntensity,
             date: new Date().toISOString(),
             videoUrl: completedVideoUrl,
             imageName: image.name,
@@ -499,6 +544,12 @@ function GenerationStudio({
       );
     }
   }
+
+  const displayedIntensity =
+    intensityMode === "automatic" &&
+    typeof audioAnalysis?.aaec?.recommended_intensity === "number"
+      ? audioAnalysis.aaec.recommended_intensity
+      : intensity;
 
   return (
     <div className="content">
@@ -573,8 +624,16 @@ function GenerationStudio({
                 accept=".wav,.mp3,.m4a,.flac,.ogg,audio/*"
                 disabled={busy}
                 onChange={(e) => {
-                  setAudio(e.target.files?.[0] ?? null);
+                  const file = e.target.files?.[0] ?? null;
+                  setAudio(file);
                   setMessage("");
+                  if (file) {
+                    analyzeSelectedAudio(file);
+                  } else {
+                    setAudioAnalysis(null);
+                    setAnalysisStatus("idle");
+                    setAnalysisMessage("");
+                  }
                 }}
               />
 
@@ -592,6 +651,63 @@ function GenerationStudio({
               </span>
             </label>
           </section>
+
+          {audio && (
+            <section className="panel studio-panel">
+              <div className="studio-section-heading">
+                <span className="studio-step"><AudioLines size={17} /></span>
+                <div>
+                  <h3>Audio readiness analysis</h3>
+                  <p>Automatic acoustic analysis and input-quality checks.</p>
+                </div>
+              </div>
+              {analysisStatus === "analyzing" && (
+                <p className="form-hint" role="status" style={{ margin: "16px 0 0" }}>{analysisMessage}</p>
+              )}
+              {analysisStatus === "failed" && (
+                <p className="form-hint" role="status" style={{ margin: "16px 0 0" }}>{analysisMessage}</p>
+              )}
+              {analysisStatus === "complete" && audioAnalysis && (
+                <div style={{ display: "grid", gap: 16, marginTop: 18 }}>
+                  <p role="status" style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "var(--muted, #94a3b8)" }}>{analysisMessage}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+                    <div style={{ padding: "15px 16px", borderRadius: 12, background: "var(--surface-soft, rgba(148,163,184,0.09))", border: "1px solid var(--border, rgba(148,163,184,0.14))" }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.4, color: "var(--muted, #94a3b8)", marginBottom: 7 }}>Recommended intensity</div>
+                      <div style={{ fontSize: 21, lineHeight: 1.2, fontWeight: 700 }}>{audioAnalysis.aaec?.recommended_intensity ?? "—"}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--muted, #94a3b8)" }}>/10</span></div>
+                    </div>
+                    <div style={{ padding: "15px 16px", borderRadius: 12, background: "var(--surface-soft, rgba(148,163,184,0.09))", border: "1px solid var(--border, rgba(148,163,184,0.14))" }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.4, color: "var(--muted, #94a3b8)", marginBottom: 7 }}>Duration</div>
+                      <div style={{ fontSize: 21, lineHeight: 1.2, fontWeight: 700 }}>{audioAnalysis.audio_readiness?.duration_seconds ?? "—"}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--muted, #94a3b8)" }}> sec</span></div>
+                    </div>
+                    <div style={{ padding: "15px 16px", borderRadius: 12, background: "var(--surface-soft, rgba(148,163,184,0.09))", border: "1px solid var(--border, rgba(148,163,184,0.14))" }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.4, color: "var(--muted, #94a3b8)", marginBottom: 7 }}>Silence</div>
+                      <div style={{ fontSize: 21, lineHeight: 1.2, fontWeight: 700 }}>{audioAnalysis.audio_readiness?.silence_percentage ?? "—"}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--muted, #94a3b8)" }}>%</span></div>
+                    </div>
+                    <div style={{ padding: "15px 16px", borderRadius: 12, background: "var(--surface-soft, rgba(148,163,184,0.09))", border: "1px solid var(--border, rgba(148,163,184,0.14))" }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.4, color: "var(--muted, #94a3b8)", marginBottom: 7 }}>Clipping</div>
+                      <div style={{ fontSize: 21, lineHeight: 1.2, fontWeight: 700 }}>{audioAnalysis.audio_readiness?.clipping_percentage ?? "—"}<span style={{ fontSize: 13, fontWeight: 500, color: "var(--muted, #94a3b8)" }}>%</span></div>
+                    </div>
+                  </div>
+                  <div style={{ padding: "13px 15px", borderRadius: 12, border: `1px solid ${audioAnalysis.audio_readiness?.ready ? "rgba(34,197,94,0.35)" : "rgba(245,158,11,0.35)"}`, background: audioAnalysis.audio_readiness?.ready ? "rgba(34,197,94,0.07)" : "rgba(245,158,11,0.07)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, fontWeight: 650, lineHeight: 1.4, marginBottom: audioAnalysis.audio_readiness?.warnings?.length ? 9 : 0 }}>
+                      <span aria-hidden="true">{audioAnalysis.audio_readiness?.ready ? "✓" : "!"}</span>
+                      {audioAnalysis.audio_readiness?.ready ? "Audio passed the readiness checks" : "Audio needs attention before generation"}
+                    </div>
+                    {audioAnalysis.audio_readiness?.warnings?.length > 0 && (
+                      <ul style={{ margin: 0, paddingLeft: 21, display: "grid", gap: 6, fontSize: 13, lineHeight: 1.5, color: "var(--foreground, inherit)" }}>
+                        {audioAnalysis.audio_readiness.warnings.map((warning: string, index: number) => (
+                          <li key={index}>{warning}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: "var(--muted, #94a3b8)" }}>
+                    Intensity is estimated from acoustic energy and pitch variation. This is an acoustic heuristic, not speech-emotion recognition.
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="panel studio-panel">
             <div className="studio-section-heading">
@@ -625,11 +741,25 @@ function GenerationStudio({
               <option value="surprise">Surprise</option>
             </select>
 
+            <label className="field-label" htmlFor="intensity-mode">
+              Intensity selection
+            </label>
+            <select
+              id="intensity-mode"
+              className="studio-select"
+              value={intensityMode}
+              disabled={busy}
+              onChange={(e) => setIntensityMode(e.target.value as "manual" | "automatic")}
+            >
+              <option value="manual">Manual intensity</option>
+              <option value="automatic">Automatic (audio-based recommendation)</option>
+            </select>
+
             <div className="intensity-heading">
               <label className="field-label" htmlFor="intensity">
                 Emotion intensity
               </label>
-              <strong>{intensity}/10</strong>
+              <strong>{displayedIntensity.toFixed(2).replace(/\.00$/, "")}/10</strong>
             </div>
 
             <input
@@ -638,8 +768,8 @@ function GenerationStudio({
               type="range"
               min="1"
               max="10"
-              value={intensity}
-              disabled={busy || emotion === "none"}
+              value={displayedIntensity}
+              disabled={busy || emotion === "none" || intensityMode === "automatic"}
               onChange={(e) => setIntensity(Number(e.target.value))}
             />
 
@@ -670,7 +800,7 @@ function GenerationStudio({
 
           <button
             className="primary-button generate-button"
-            disabled={!image || !audio || busy || backendOnline === false}
+            disabled={!image || !audio || busy || backendOnline === false || analysisStatus === "analyzing" || (intensityMode === "automatic" && analysisStatus !== "complete")}
             onClick={handleGenerate}
           >
             {status === "submitting"
@@ -1068,15 +1198,3 @@ function Detail({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
