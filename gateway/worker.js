@@ -31,9 +31,20 @@ function isAllowedPath(path) {
   return (
     path === "/api/health" ||
     path === "/api/generate" ||
+    path === "/api/analyze-audio" ||
     /^\/api\/generate\/[a-fA-F0-9-]+$/.test(path) ||
-    /^\/api\/generate\/[a-fA-F0-9-]+\/video$/.test(path)
+    /^\/api\/generate\/[a-fA-F0-9-]+\/video$/.test(path) ||
+    /^\/api\/recover\/[a-fA-F0-9-]+$/.test(path)
   );
+}
+
+async function applyRateLimit(request, env, path) {
+  const clientIp =
+    request.headers.get("CF-Connecting-IP") || "unknown";
+
+  const key = `${path}:${clientIp}`;
+
+  return env.GENERATION_LIMITER.limit({ key });
 }
 
 export default {
@@ -44,7 +55,10 @@ export default {
     const { headers: cors, allowed } = corsHeaders(origin, env);
 
     if (origin && !allowed.has(origin)) {
-      return new Response("Origin not allowed", { status: 403 });
+      return new Response("Origin not allowed", {
+        status: 403,
+        headers: cors,
+      });
     }
 
     if (!isAllowedPath(url.pathname)) {
@@ -75,30 +89,97 @@ export default {
       });
     }
 
+    // Rate-limit expensive generation and audio-analysis requests.
+    // Status polling, recovery and video streaming remain unrestricted.
+    const needsRateLimit =
+      request.method === "POST" &&
+      (
+        url.pathname === "/api/generate" ||
+        url.pathname === "/api/analyze-audio"
+      );
+
+    if (needsRateLimit) {
+      if (!env.GENERATION_LIMITER) {
+        return new Response("Rate limiter binding is missing", {
+          status: 503,
+          headers: cors,
+        });
+      }
+
+      try {
+        const limitResult = await applyRateLimit(
+          request,
+          env,
+          url.pathname
+        );
+
+        if (!limitResult.success) {
+          const headers = new Headers(cors);
+
+          headers.set("Retry-After", "60");
+          headers.set("Cache-Control", "no-store");
+          headers.set(
+            "Content-Type",
+            "application/json; charset=utf-8"
+          );
+
+          return new Response(
+            JSON.stringify({
+              detail:
+                "Too many requests. Please wait up to 60 seconds before trying again.",
+            }),
+            {
+              status: 429,
+              headers,
+            }
+          );
+        }
+      } catch (error) {
+        console.error("Rate limiter error:", error);
+
+        return new Response("Rate limiter unavailable", {
+          status: 503,
+          headers: cors,
+        });
+      }
+    }
+
     try {
+      const baseUrl = env.BACKEND_URL.endsWith("/")
+        ? env.BACKEND_URL
+        : `${env.BACKEND_URL}/`;
+
       const backendUrl = new URL(
         url.pathname + url.search,
-        env.BACKEND_URL.endsWith("/")
-          ? env.BACKEND_URL
-          : env.BACKEND_URL + "/"
+        baseUrl
       );
 
-      const requestHeaders = new Headers(request.headers);
+      const backendHeaders = new Headers(request.headers);
 
-      requestHeaders.delete("Host");
-      requestHeaders.delete("Content-Length");
-      requestHeaders.set("X-API-Key", env.FLOAT_API_KEY);
+      backendHeaders.delete("Host");
+      backendHeaders.delete("Content-Length");
+      backendHeaders.delete("CF-Connecting-IP");
 
-      const backendResponse = await fetch(
-        new Request(backendUrl.toString(), {
+      // Inject the secret only on the server side.
+      backendHeaders.set("X-API-Key", env.FLOAT_API_KEY);
+
+      const backendRequest = new Request(
+        backendUrl.toString(),
+        {
           method: request.method,
-          headers: requestHeaders,
-          body: request.method === "GET" ? null : request.body,
+          headers: backendHeaders,
+          body: request.method === "GET"
+            ? null
+            : request.body,
           redirect: "manual",
-        })
+        }
       );
 
-      const responseHeaders = new Headers(backendResponse.headers);
+      const backendResponse = await fetch(backendRequest);
+
+      const responseHeaders = new Headers(
+        backendResponse.headers
+      );
 
       cors.forEach((value, key) => {
         responseHeaders.set(key, value);
