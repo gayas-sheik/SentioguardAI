@@ -1,6 +1,6 @@
 
 @echo off
-title SentioguardAI Launcher
+title SentioGuardAI - Application Launcher
 
 cd /d "%~dp0"
 
