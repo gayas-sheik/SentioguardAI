@@ -406,11 +406,34 @@ function GenerationStudio({
       const response = await fetch(`${API_URL}/api/analyze-audio`, {
         method: "POST",
         body: formData,
+        cache: "no-store",
       });
-      const result = await response.json();
+
+      // Read the response once; the gateway may return plain text errors.
+      const responseText = await response.text();
+
+      let result: any;
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = {
+          detail: responseText || "The server returned an invalid response.",
+        };
+      }
 
       if (!response.ok) {
-        throw new Error(result.detail || "Audio analysis failed.");
+        if (response.status === 429) {
+          const retryAfter = response.headers.get("Retry-After") || "60";
+          throw new Error(
+            `Audio analysis rate limit reached. Please wait ${retryAfter} seconds and try again.`
+          );
+        }
+
+        throw new Error(
+          result.detail ||
+            result.message ||
+            `Audio analysis failed (HTTP ${response.status}).`
+        );
       }
 
       setAudioAnalysis(result);
