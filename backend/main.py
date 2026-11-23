@@ -1,4 +1,3 @@
-
 import copy
 import hmac
 import os
@@ -12,6 +11,19 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+
+# Support both `uvicorn backend.main:app` (project root) and
+# `uvicorn main:app` (backend directory).
+try:
+    from .audio_analysis import (
+        analyze_audio_for_aaec,
+        analyze_audio_readiness,
+    )
+except ImportError:
+    from audio_analysis import (
+        analyze_audio_for_aaec,
+        analyze_audio_readiness,
+    )
 
 # --------------------------------------------------
 # Configuration
@@ -28,6 +40,10 @@ REQUEST_TIMEOUT = 30
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB per file
 MAX_ACTIVE_JOBS = 2
 SUBMISSION_LOCK = threading.Lock()
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
+AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
+INTENSITY_MODES = {"manual", "automatic"}
 
 EMOTIONS = {
     "none",
@@ -52,7 +68,7 @@ JOBS: dict[str, dict[str, Any]] = {}
 app = FastAPI(
     title="SentioGaurdAI Backend",
     description="Backend API for emotion-controlled talking-head generation.",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 app.add_middleware(
@@ -72,11 +88,42 @@ app.add_middleware(
 # --------------------------------------------------
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    """Allow API access only to the trusted Cloudflare Worker."""
+    """Allow API access only to the trusted Cloudflare Worker/client."""
     if not API_KEY:
-        raise HTTPException(status_code=503, detail="Backend API key is not configured.")
+        raise HTTPException(
+            status_code=503,
+            detail="Backend API key is not configured.",
+        )
     if not x_api_key or not hmac.compare_digest(x_api_key, API_KEY):
-        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing API key.",
+        )
+
+
+def validate_audio_upload(audio: UploadFile) -> None:
+    """Validate the uploaded audio filename extension."""
+    if not audio.filename or Path(audio.filename).suffix.lower() not in AUDIO_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload a WAV, MP3, M4A, FLAC, or OGG audio file.",
+        )
+
+
+def read_limited_upload(upload: UploadFile, label: str) -> bytes:
+    """Read an upload while enforcing the configured size limit."""
+    content = upload.file.read(MAX_FILE_SIZE + 1)
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The uploaded {label} file is empty.",
+        )
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"The uploaded {label} file must be 50 MB or smaller.",
+        )
+    return content
 
 
 def check_comfyui() -> bool:
@@ -109,10 +156,7 @@ def load_workflow() -> dict:
         )
 
 
-def upload_to_comfyui(
-    filename: str,
-    content: bytes,
-) -> str:
+def upload_to_comfyui(filename: str, content: bytes) -> str:
     unique_filename = f"{uuid.uuid4().hex}_{Path(filename).name}"
 
     try:
@@ -269,7 +313,36 @@ def health():
         "backend": "online",
         "comfyui": "online" if comfyui_online else "offline",
         "workflow": WORKFLOW_PATH.exists(),
+        "audio_analysis": "available",
     }
+
+
+@app.post("/api/analyze-audio", dependencies=[Depends(require_api_key)])
+async def analyze_audio_endpoint(audio: UploadFile = File(...)):
+    """Return AAEC intensity advice and technical audio-readiness information."""
+    validate_audio_upload(audio)
+    audio_content = read_limited_upload(audio, "audio")
+
+    try:
+        aaec_result = analyze_audio_for_aaec(audio_content)
+        readiness_result = analyze_audio_readiness(audio_content)
+
+        return {
+            "aaec": aaec_result,
+            "audio_readiness": readiness_result,
+            "notice": (
+                "The recommended intensity is an acoustic heuristic based on "
+                "energy and pitch variation; it is not speech-emotion recognition."
+            ),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Invalid, unsupported, or corrupted audio should return a client error.
+        raise HTTPException(
+            status_code=400,
+            detail=f"Audio analysis failed. Check that the audio file is valid: {exc}",
+        )
 
 
 @app.post("/api/generate", dependencies=[Depends(require_api_key)])
@@ -278,6 +351,7 @@ async def generate_video(
     audio: UploadFile = File(...),
     emotion: str = Form(...),
     intensity: float = Form(7.0),
+    intensity_mode: str = Form("manual"),
 ):
     if emotion not in EMOTIONS:
         raise HTTPException(
@@ -285,41 +359,52 @@ async def generate_video(
             detail=f"Invalid emotion. Choose from: {sorted(EMOTIONS)}",
         )
 
+    if intensity_mode not in INTENSITY_MODES:
+        raise HTTPException(
+            status_code=400,
+            detail="intensity_mode must be either 'manual' or 'automatic'.",
+        )
+
+    # Validate manual intensity even when automatic mode is selected,
+    # keeping the existing form field safe and predictable.
     if not 1 <= intensity <= 10:
         raise HTTPException(
             status_code=400,
             detail="Intensity must be between 1 and 10.",
         )
 
-    if not image.filename or Path(image.filename).suffix.lower() not in {
-        ".png", ".jpg", ".jpeg", ".webp"
-    }:
+    if not image.filename or Path(image.filename).suffix.lower() not in IMAGE_EXTENSIONS:
         raise HTTPException(
             status_code=400,
             detail="Upload a PNG, JPG, JPEG, or WEBP facial image.",
         )
 
-    if not audio.filename or Path(audio.filename).suffix.lower() not in {
-        ".wav", ".mp3", ".m4a", ".flac", ".ogg"
-    }:
+    validate_audio_upload(audio)
+
+    image_content = read_limited_upload(image, "image")
+    audio_content = read_limited_upload(audio, "audio")
+
+    # Manual remains the default. Automatic mode computes its value on the
+    # server from the actual uploaded audio; the client cannot supply a score.
+    aaec_result = None
+    readiness_result = None
+    selected_intensity = float(intensity)
+
+    if intensity_mode == "automatic":
+        try:
+            aaec_result = analyze_audio_for_aaec(audio_content)
+            readiness_result = analyze_audio_readiness(audio_content)
+            selected_intensity = float(aaec_result["recommended_intensity"])
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Automatic intensity analysis failed. Use manual mode or upload valid audio: {exc}",
+            )
+
+    if not 1 <= selected_intensity <= 10:
         raise HTTPException(
             status_code=400,
-            detail="Upload a WAV, MP3, M4A, FLAC, or OGG audio file.",
-        )
-
-    image_content = await image.read()
-    audio_content = await audio.read()
-
-    if not image_content or not audio_content:
-        raise HTTPException(
-            status_code=400,
-            detail="Both image and audio files are required.",
-        )
-
-    if len(image_content) > MAX_FILE_SIZE or len(audio_content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail="Each uploaded file must be 50 MB or smaller.",
+            detail="Calculated intensity must be between 1 and 10.",
         )
 
     if not check_comfyui():
@@ -361,7 +446,7 @@ async def generate_video(
         prompt["4"]["inputs"]["audio"] = audio_name
 
         prompt["10"]["inputs"]["emotion"] = emotion
-        prompt["10"]["inputs"]["e_cfg_scale"] = float(intensity)
+        prompt["10"]["inputs"]["e_cfg_scale"] = selected_intensity
 
         # Keep the tested project settings.
         prompt["10"]["inputs"]["a_cfg_scale"] = 2.0
@@ -394,7 +479,11 @@ async def generate_video(
         JOBS[prompt_id] = {
             "status": "queued",
             "emotion": emotion,
-            "intensity": intensity,
+            "intensity": selected_intensity,
+            "requested_intensity": float(intensity),
+            "intensity_mode": intensity_mode,
+            "aaec": aaec_result,
+            "audio_readiness": readiness_result,
             "video": None,
             "error": None,
         }
@@ -403,6 +492,10 @@ async def generate_video(
             "job_id": prompt_id,
             "status": "queued",
             "message": "Video generation has been submitted to FLOAT.",
+            "intensity_mode": intensity_mode,
+            "selected_intensity": selected_intensity,
+            "aaec": aaec_result,
+            "audio_readiness": readiness_result,
         }
 
     except HTTPException:
@@ -434,20 +527,89 @@ def generation_status(job_id: str):
     return get_job_status(job_id)
 
 
-@app.get("/api/generate/{job_id}/video", dependencies=[Depends(require_api_key)])
-def get_generated_video(job_id: str):
-    if job_id not in JOBS:
-        raise HTTPException(status_code=404, detail="Job not found.")
+
+@app.post("/api/recover/{job_id}", dependencies=[Depends(require_api_key)])
+def recover_completed_job(job_id: str):
+    if job_id in JOBS:
+        return get_job_status(job_id)
+
+    history_entry = get_history_entry(job_id)
+
+    if not history_entry:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found in ComfyUI history.",
+        )
+
+    JOBS[job_id] = {
+        "status": "queued",
+        "emotion": "unknown",
+        "intensity": None,
+        "requested_intensity": None,
+        "intensity_mode": "unknown",
+        "aaec": None,
+        "audio_readiness": None,
+        "video": None,
+        "error": None,
+    }
 
     status = get_job_status(job_id)
 
     if status["status"] != "completed":
         raise HTTPException(
             status_code=409,
+            detail="The existing generation is not completed.",
+        )
+
+    return status
+
+
+
+@app.get(
+    "/api/generate/{job_id}/video",
+    dependencies=[Depends(require_api_key)],
+)
+def get_generated_video(job_id: str):
+    """Recover a completed job if necessary, then stream its video."""
+
+    # Recover the job if FastAPI has restarted.
+    if job_id not in JOBS:
+        history_entry = get_history_entry(job_id)
+
+        if not history_entry:
+            raise HTTPException(
+                status_code=404,
+                detail="Job not found in ComfyUI history.",
+            )
+
+        JOBS[job_id] = {
+            "status": "queued",
+            "emotion": "unknown",
+            "intensity": None,
+            "requested_intensity": None,
+            "intensity_mode": "unknown",
+            "aaec": None,
+            "audio_readiness": None,
+            "video": None,
+            "error": None,
+        }
+
+    # Refresh status and retrieve video metadata.
+    status = get_job_status(job_id)
+
+    if status.get("status") != "completed":
+        raise HTTPException(
+            status_code=409,
             detail="The video is not ready yet.",
         )
 
-    video = JOBS[job_id]["video"]
+    video = JOBS[job_id].get("video")
+
+    if not video or not video.get("filename"):
+        raise HTTPException(
+            status_code=404,
+            detail="Generated video metadata not found.",
+        )
 
     try:
         response = requests.get(
@@ -462,9 +624,15 @@ def get_generated_video(job_id: str):
         )
         response.raise_for_status()
 
+        content_type = response.headers.get(
+            "Content-Type", "video/mp4"
+        )
+
         def stream_video():
             try:
-                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                for chunk in response.iter_content(
+                    chunk_size=1024 * 1024
+                ):
                     if chunk:
                         yield chunk
             finally:
@@ -472,14 +640,15 @@ def get_generated_video(job_id: str):
 
         return StreamingResponse(
             stream_video(),
-            media_type="video/mp4",
+            media_type=content_type,
             headers={
-                "Content-Disposition": 'inline; filename="sentio_generated.mp4"'
+                "Content-Disposition":
+                    'inline; filename="sentio_generated.mp4"'
             },
         )
 
     except requests.RequestException as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Could not retrieve generated video: {exc}",
+            detail=f"Could not retrieve generated video from ComfyUI: {exc}",
         )

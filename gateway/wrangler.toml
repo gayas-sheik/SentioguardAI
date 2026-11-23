@@ -1,0 +1,11 @@
+name = "sentioguard-gateway"
+main = "worker.js"
+compatibility_date = "2026-11-15"
+preview_urls = true
+keep_vars = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true

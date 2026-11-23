@@ -4,14 +4,29 @@ venv/
 __pycache__/
 *.py[cod]
 *.pyd
+.pytest_cache/
 
 # Environment variables and secrets
 .env
 .env.*
 !.env.example
+*.key
+*.pem
 
-# ComfyUI installation, custom nodes, models and generated files
+# ComfyUI installation, models and temporary data
 /comfyui/
+comfyui/models/
+comfyui/temp/
+comfyui/output/
+comfyui/input/
+
+# Model weights and checkpoints
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
 
 # Frontend dependencies and build output
 /frontend/node_modules/
@@ -19,16 +34,19 @@ __pycache__/
 /frontend/out/
 /frontend/build/
 /frontend/.vercel/
-/frontend/.env*
 
-# Logs
+# Logs and runtime files
 /logs/
+*.log
+/gateway/.wrangler/
 
 # Generated media
 *.mp4
-*.webm
 *.mov
+*.webm
 *.gif
+*.wav
+*.mp3
 
 # Editor and operating system files
 .vscode/
@@ -42,18 +60,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
-# Local backups and temporary files
+
+# Local backup and obsolete files
 /main_secured.py
 /old-implementation.txt
 /old-main.txt
-
-
+/?*qq
+/backend/main_backup.py
+/frontend/src/app/page.before-icons.tsx
 
 # Obsolete local files
 /frontend/AGENTS.md
-
-# Obsolete legacy entry point
-/?*qq
-
-# Local backend backup
-/backend/main_backup.py
